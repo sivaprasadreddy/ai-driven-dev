@@ -179,4 +179,153 @@ class ShortUrlControllerTests extends BaseIntegrationTest {
                 .body("hasNext", equalTo(true))
                 .body("hasPrevious", equalTo(false));
     }
+
+    @Test
+    void shouldCreateShortUrlSuccessfully() {
+        String requestBody = """
+                {
+                    "originalUrl": "https://example.com/some/page",
+                    "isPrivate": false,
+                    "expirationInDays": 30
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("shortKey", notNullValue())
+                .body("shortKey.length()", equalTo(6))
+                .body("originalUrl", equalTo("https://example.com/some/page"))
+                .body("isPrivate", equalTo(false))
+                .body("createdBy", nullValue())
+                .body("clickCount", equalTo(0))
+                .body("createdAt", notNullValue())
+                .body("expiresAt", notNullValue());
+    }
+
+    @Test
+    void shouldCreateShortUrlWithoutHttpPrefix() {
+        String requestBody = """
+                {
+                    "originalUrl": "example.com/some/page"
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(201)
+                .body("originalUrl", equalTo("http://example.com/some/page"))
+                .body("isPrivate", equalTo(false))
+                .body("expiresAt", nullValue());
+    }
+
+    @Test
+    void shouldCreatePrivateShortUrl() {
+        String requestBody = """
+                {
+                    "originalUrl": "https://private-example.com",
+                    "isPrivate": true
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(201)
+                .body("isPrivate", equalTo(true));
+    }
+
+    @Test
+    void shouldFailToCreateShortUrlWithEmptyUrl() {
+        String requestBody = """
+                {
+                    "originalUrl": "",
+                    "isPrivate": false
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void shouldFailToCreateShortUrlWithInvalidUrl() {
+        String requestBody = """
+                {
+                    "originalUrl": "not-a-valid-url"
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(400)
+                .body("type", equalTo("about:blank"))
+                .body("title", equalTo("Bad Request"))
+                .body("status", equalTo(400))
+                .body("detail", containsString("Invalid URL"))
+                .body("instance", equalTo("/api/short-urls"));
+    }
+
+    @Test
+    void shouldFailToCreateShortUrlWithNullUrl() {
+        String requestBody = """
+                {
+                    "isPrivate": false
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void shouldFailToCreateShortUrlWithInvalidExpirationDays() {
+        String requestBody = """
+                {
+                    "originalUrl": "https://example.com",
+                    "expirationInDays": 0
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(requestBody)
+        .when()
+                .post("/api/short-urls")
+        .then()
+                .statusCode(400);
+    }
 }
